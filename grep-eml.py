@@ -47,21 +47,22 @@ def extract_text_from_header(filepath):
         print(f"헤더 읽기 실패: {filepath}: {e}")
         return ""
 
-def has_keyword(filepath, pattern, search_body=False):
+def find_matches(filepath, pattern, search_body=False):
     if search_body:
         content = extract_text_from_body(filepath)
     else:
         content = extract_text_from_header(filepath)
 
-    return bool(pattern.search(content))
+    return pattern.findall(content)
 
 def main():
-    parser = argparse.ArgumentParser(description="EML 파일 헤더 또는 본문을 검색하여 정규식에 매칭되는 파일 경로를 출력하거나 복사합니다.")
+    parser = argparse.ArgumentParser(description="EML 파일 헤더 또는 본문을 검색하여 정규식에 매칭되는 파일 경로 또는 매칭 텍스트를 출력합니다.")
     parser.add_argument('-i', '--input', required=True, help='입력 디렉토리 경로')
     parser.add_argument('-p', '--pattern', required=True, help='찾을 정규 표현식')
     parser.add_argument('--ignore-case', action='store_true', help='대소문자 구분 없이 검색')
     parser.add_argument('-o', '--output', help='매칭된 파일을 복사할 출력 디렉토리')
     parser.add_argument('-b', '--body', action='store_true', help='헤더 대신 본문을 검색합니다 (첨부파일 제외)')
+    parser.add_argument('--match-only', action='store_true', help='매칭된 텍스트만 출력')
     args = parser.parse_args()
 
     input_dir = args.input
@@ -69,6 +70,7 @@ def main():
     ignore_case = args.ignore_case
     output_dir = args.output
     search_body = args.body
+    match_only = args.match_only
 
     flags = re.IGNORECASE if ignore_case else 0
 
@@ -81,19 +83,23 @@ def main():
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 순차적으로 파일 처리
     for root, _, files in os.walk(input_dir):
         for file in files:
             if file.lower().endswith('.eml'):
                 filepath = os.path.join(root, file)
                 try:
-                    if has_keyword(filepath, pattern, search_body):
-                        if output_dir:
-                            dest_path = os.path.join(output_dir, os.path.basename(filepath))
-                            shutil.copy2(filepath, dest_path)
-                            print(f"복사 완료: {filepath} -> {dest_path}")
+                    matches = find_matches(filepath, pattern, search_body)
+                    if matches:
+                        if match_only:
+                            for match in matches:
+                                print(match)
                         else:
-                            print(filepath)
+                            if output_dir:
+                                dest_path = os.path.join(output_dir, os.path.basename(filepath))
+                                shutil.copy2(filepath, dest_path)
+                                print(f"복사 완료: {filepath} -> {dest_path}")
+                            else:
+                                print(filepath)
                 except Exception as e:
                     print(f"처리 실패: {filepath}: {e}")
 
