@@ -3,7 +3,7 @@
 EML 분석 도구 (CSV 출력 + X-Originating-IP + PHPMailer 검사 + 날짜 포맷)
 
 Usage:
-    python eml_summarizer.py -i 입력경로 [-r]
+    python eml_list.py -i 입력경로 [-r]
 """
 import argparse
 import os
