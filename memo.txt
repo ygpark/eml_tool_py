@@ -13,12 +13,12 @@
 ```
 
 ```
-grep-eml.py --body --match-only -i . -p 'https?://[^"\s]*KEYWORD[^"\s]*' 
+uv run eml-search --body --match-only -i . -p 'https?://[^"\s]*KEYWORD[^"\s]*' 
 ```
 
 `(?:A|B|C)`처럼 여러 개를 검색할 때 `?:` 기호를 써서 캡처그룹을 없애줘야 제대로 출력됨.
 ```
-grep-eml.py --body --match-only -i ./ -p 'https?://[^"\s]*(?:\.메인\.한국|\.커뮤니티\.한국|\.서버\.한국|\.온라인\.한국|\.홈페이지\.한국|\.블로그\.한국|\.웹\.한국|\.p-e\.kr|\.o-r\.kr|\.n-e\.kr|\.r-e\.kr|\.kro.kr)[^"\s]*'
+uv run eml-search --body --match-only -i ./ -p 'https?://[^"\s]*(?:\.메인\.한국|\.커뮤니티\.한국|\.서버\.한국|\.온라인\.한국|\.홈페이지\.한국|\.블로그\.한국|\.웹\.한국|\.p-e\.kr|\.o-r\.kr|\.n-e\.kr|\.r-e\.kr|\.kro.kr)[^"\s]*'
 ```
 
 ## GET 파라미터의 값 제거

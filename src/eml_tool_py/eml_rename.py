@@ -18,7 +18,7 @@ import sys
 from datetime import datetime
 from email.header import decode_header, make_header
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
 
 # ──────────────────────── 도움말 텍스트 ──────────────────────── #
 _DESCRIPTION = """\
@@ -41,9 +41,12 @@ EXAMPLES
     python rename_eml.py --uniq none ./inbox
 """
 
-_USAGE = ("python rename_eml.py [-r] [--mode {received,sent}] "
-          "[--uniq {hash,none}] [--on-dup {suffix,skip,overwrite}] "
-          "[--dry-run] PATH [PATH ...]")
+_USAGE = (
+    "python rename_eml.py [-r] [--mode {received,sent}] "
+    "[--uniq {hash,none}] [--on-dup {suffix,skip,overwrite}] "
+    "[--dry-run] PATH [PATH ...]"
+)
+
 
 # ──────────────────────── 파서 빌더 ──────────────────────── #
 def _build_parser() -> argparse.ArgumentParser:
@@ -56,39 +59,63 @@ def _build_parser() -> argparse.ArgumentParser:
         add_help=False,
     )
 
-    parser.add_argument("-h", "--help",
-                        action="help",
-                        default=argparse.SUPPRESS,
-                        help="이 도움말을 표시하고 종료합니다.")
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="이 도움말을 표시하고 종료합니다.",
+    )
 
-    parser.add_argument("-r", "--recursive", action="store_true",
-                        help="하위 디렉터리를 재귀적으로 탐색합니다.")
-    parser.add_argument("--mode", choices=("received", "sent"),
-                        default="received",
-                        help="날짜 추출 기준(기본: received).")
-    parser.add_argument("--uniq", choices=("hash", "none"),
-                        default="hash",
-                        help="짧은 해시(hash) 또는 사용 안 함(none), 기본: hash.")
-    parser.add_argument("--on-dup",
-                        choices=("suffix", "skip", "overwrite"),
-                        default="suffix",
-                        help=("동일 이름이 이미 존재할 때 동작 "
-                              "(suffix|skip|overwrite, 기본: suffix)."))
-    parser.add_argument("--dry-run", action="store_true",
-                        help="변경 사항을 출력만 하고 실제로 수정하지 않습니다.")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="진행 상황을 상세히 출력합니다.")
-    parser.add_argument("paths", nargs="+",
-                        help=".eml 파일 또는 디렉터리 경로(여러 개 가능).")
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="하위 디렉터리를 재귀적으로 탐색합니다.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("received", "sent"),
+        default="received",
+        help="날짜 추출 기준(기본: received).",
+    )
+    parser.add_argument(
+        "--uniq",
+        choices=("hash", "none"),
+        default="hash",
+        help="짧은 해시(hash) 또는 사용 안 함(none), 기본: hash.",
+    )
+    parser.add_argument(
+        "--on-dup",
+        choices=("suffix", "skip", "overwrite"),
+        default="suffix",
+        help=("동일 이름이 이미 존재할 때 동작 (suffix|skip|overwrite, 기본: suffix)."),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="변경 사항을 출력만 하고 실제로 수정하지 않습니다.",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="진행 상황을 상세히 출력합니다."
+    )
+    parser.add_argument(
+        "paths", nargs="+", help=".eml 파일 또는 디렉터리 경로(여러 개 가능)."
+    )
     return parser
+
 
 # ──────────────────────── 유틸리티 ──────────────────────── #
 _SUBJECT_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 
+
 def _safe_subject(subject: str, max_len: int = 120) -> str:
     cleaned = _SUBJECT_RE.sub(" ", subject).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
-    return (cleaned[:max_len].rstrip() if len(cleaned) > max_len else cleaned) or "untitled"
+    return (
+        cleaned[:max_len].rstrip() if len(cleaned) > max_len else cleaned
+    ) or "untitled"
+
 
 def _get_subject(msg: email.message.Message) -> str:
     raw = msg.get("Subject", "")
@@ -97,12 +124,16 @@ def _get_subject(msg: email.message.Message) -> str:
     except Exception:
         return raw
 
+
 def _extract_datetime(msg: email.message.Message, mode: str) -> datetime | None:
     hdr_val = msg.get("Date")
+    if hdr_val is None:
+        return None
     try:
         return email.utils.parsedate_to_datetime(hdr_val)
     except Exception:
         return None
+
 
 def _short_hash(path: Path, length: int = 8) -> str:
     h = hashlib.sha256()
@@ -110,6 +141,7 @@ def _short_hash(path: Path, length: int = 8) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()[:length]
+
 
 def _unique_path(base: Path) -> Path:
     if not base.exists():
@@ -121,13 +153,11 @@ def _unique_path(base: Path) -> Path:
             return candidate
     raise FileExistsError(f"너무 많은 중복: {base!s}")
 
+
 # ──────────────────────── 핵심 로직 ──────────────────────── #
-def _rename_file(file_path: Path,
-                 mode: str,
-                 uniq: str,
-                 on_dup: str,
-                 dry_run: bool,
-                 verbose: bool) -> None:
+def _rename_file(
+    file_path: Path, mode: str, uniq: str, on_dup: str, dry_run: bool, verbose: bool
+) -> None:
     try:
         with file_path.open("rb") as f:
             msg = email.message_from_binary_file(f)
@@ -167,8 +197,9 @@ def _rename_file(file_path: Path,
         except Exception as e:
             print(f"[ERR] 이름 변경 실패: {file_path!s}: {e}", file=sys.stderr)
 
-def _iter_target_files(paths: Iterable[str], recursive: bool) -> List[Path]:
-    files: List[Path] = []
+
+def _iter_target_files(paths: Iterable[str], recursive: bool) -> list[Path]:
+    files: list[Path] = []
     for p in map(Path, paths):
         if p.is_file() and p.suffix.lower() == ".eml":
             files.append(p)
@@ -177,8 +208,9 @@ def _iter_target_files(paths: Iterable[str], recursive: bool) -> List[Path]:
             files.extend(p.glob(pattern))
     return files
 
+
 # ──────────────────────── 메인 ──────────────────────── #
-def main(argv: List[str] | None = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
@@ -188,8 +220,8 @@ def main(argv: List[str] | None = None) -> None:
         sys.exit(1)
 
     for f in files:
-        _rename_file(f, args.mode, args.uniq, args.on_dup,
-                     args.dry_run, args.verbose)
+        _rename_file(f, args.mode, args.uniq, args.on_dup, args.dry_run, args.verbose)
+
 
 if __name__ == "__main__":
     main()
